@@ -8,11 +8,11 @@ export default async function AppRootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
+    const session = await getServerSession(authOptions);
 
-  if (!session) {
-    redirect("/login");
-  }
+    // if (!session) {
+    //   redirect("/login");
+    // }
 
-  return <AppLayout>{children}</AppLayout>;
+    return <AppLayout>{children}</AppLayout>;
 }
