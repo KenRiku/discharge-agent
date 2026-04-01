@@ -1,0 +1,125 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  NURSE
+  COORDINATOR
+  ADMIN
+}
+
+enum PatientStatus {
+  ENROLLED
+  IN_PROGRESS
+  COMPLETED
+  ESCALATED
+}
+
+enum ScheduleStatus {
+  PENDING
+  COMPLETED
+  MISSED
+}
+
+enum FlagStatus {
+  NONE
+  YELLOW
+  RED
+}
+
+enum EscalationSeverity {
+  YELLOW
+  RED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  role         UserRole @default(NURSE)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  enrolledPatients  Patient[]    @relation("EnrolledBy")
+  resolvedEscalations Escalation[] @relation("ResolvedBy")
+}
+
+model Patient {
+  id            String        @id @default(cuid())
+  name          String
+  dob           DateTime
+  phone         String
+  procedureType String
+  dischargeDate DateTime
+  status        PatientStatus @default(ENROLLED)
+  notes         String?
+  enrolledById  String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  enrolledBy    User          @relation("EnrolledBy", fields: [enrolledById], references: [id])
+  callSchedules CallSchedule[]
+  calls         Call[]
+  escalations   Escalation[]
+}
+
+model CallSchedule {
+  id            String         @id @default(cuid())
+  patientId     String
+  scheduledDay  Int
+  scheduledDate DateTime
+  status        ScheduleStatus @default(PENDING)
+  callId        String?        @unique
+  createdAt     DateTime       @default(now())
+
+  patient       Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  call          Call?          @relation(fields: [callId], references: [id])
+}
+
+model Call {
+  id            String     @id @default(cuid())
+  patientId     String
+  scheduleId    String?
+  startedAt     DateTime   @default(now())
+  completedAt   DateTime?
+  transcript    Json       @default("[]")
+  painScore     Int?
+  medAdherence  Boolean?
+  flagStatus    FlagStatus @default(NONE)
+  flagReason    String?
+  summary       String?
+  createdAt     DateTime   @default(now())
+
+  patient       Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  schedule      CallSchedule?
+  escalation    Escalation?
+}
+
+model Escalation {
+  id           String             @id @default(cuid())
+  callId       String             @unique
+  patientId    String
+  severity     EscalationSeverity
+  reason       String
+  resolvedAt   DateTime?
+  resolvedById String?
+  createdAt    DateTime           @default(now())
+
+  call         Call               @relation(fields: [callId], references: [id], onDelete: Cascade)
+  patient      Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  resolvedBy   User?              @relation("ResolvedBy", fields: [resolvedById], references: [id])
+}
+
+model ProcedureTemplate {
+  id            String   @id @default(cuid())
+  procedureType String   @unique
+  questions     Json
+  redFlagRules  Json
+  createdAt     DateTime @default(now())
+}
